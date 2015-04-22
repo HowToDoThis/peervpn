@@ -34,10 +34,12 @@ script:
 deploy:
   provider: releases
   api_key:
-    secure: Cz2N3Vp3txw1tCVYLjqafixha/Lru4uWF0pDZm2kzT6N9AoOUPu3GkiVjRiyHLBO5WcfA9jnkAwm8T9A+QDi9+ourMYburcCtii3yMFwB4ZisGr5vZtY5x3ZFYcmpTKAijJVi0tBOpcYqpcsbVj88Wju1NFwrq5KR1tBnzicBbA=
+    secure: G6vl9Mixt2lxduD5N+tmJCX1yrQLLWGcHGvM+BCQNEabY88trspVbcTpQaAUMbdRE22Y7IrKgSTi9y/ZUkt2r7U9Bg2OUI2GeEyiYuN4WcdzkIVsfXR9lUKjclVUufS/KRKafQvwi8Ogk8+XEGRdeOGonFKedQJwCTC4IP/oLzM=
   file: 
   - "peervpn-$ARCH-$TRAVIS_TAG.exe"
   - "peervpn-installer-$ARCH-$TRAVIS_TAG.exe"
   skip_cleanup: true
   on:
+    repo: chrwick/peervpn
     tags: true
+    
