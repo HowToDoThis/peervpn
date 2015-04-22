@@ -1,0 +1,5 @@
+#define PACKAGE_NAME "PeerVPN"
+#define PACKAGE "peervpn"
+#define PACKAGE_VERSION "0.0.42"
+#define PEERVPN_VERSION_RESOURCE 0,0,42
+#define TAP_WIN_COMPONENT_ID "tap0901"

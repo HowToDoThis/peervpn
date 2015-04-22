@@ -1,0 +1,43 @@
+language: c
+
+matrix:
+  fast_finish: true
+  include:
+  - compiler: i686-w64-mingw32-gcc
+    env: ARCH=x86 MINGW=/opt/mingw32 TAP_WINDOWS_INSTALLER_VERSION=9.21.1
+  - compiler: x86_64-w64-mingw32-gcc
+    env: ARCH=x86_64 MINGW=/opt/mingw64 TAP_WINDOWS_INSTALLER_VERSION=9.21.1
+
+install:
+- sudo add-apt-repository --yes ppa:tobydox/mingw-x-precise
+- sudo apt-get update -qq
+- uname -m
+- echo $CC
+- echo $MINGW
+- if [ "$ARCH" == "x86" ]; then sudo apt-get install -y mingw32-x-binutils mingw32-x-gcc mingw32-x-runtime mingw32-x-openssl mingw32-x-zlib; fi
+- if [ "$ARCH" == "x86_64" ]; then sudo apt-get install -y mingw64-x-binutils mingw64-x-gcc mingw64-x-runtime mingw64-x-openssl mingw64-x-zlib; fi
+- export PATH=$MINGW/bin:$PATH
+- sudo apt-get install nsis
+- wget http://build.openvpn.net/downloads/releases/tap-windows-$TAP_WINDOWS_INSTALLER_VERSION.exe
+
+script:
+- make
+- cd win-peervpnserv
+- make
+- mv peervpnserv.exe ..
+- cd ..
+- cd win-installer
+- makensis -DARCH=$ARCH -DVERSION_STRING=$TRAVIS_TAG -DPEERVPN_ROOT=.. -DTAP_WINDOWS_INSTALLER=../tap-windows-${TAP_WINDOWS_INSTALLER_VERSION}.exe -DUSE_TAP_WINDOWS -DOUTPUT=../peervpn-installer-$ARCH-$TRAVIS_TAG.exe -DPACKAGE_NAME=PeerVPN peervpn.nsi
+- cd ..
+- mv peervpn.exe peervpn-$ARCH-$TRAVIS_TAG.exe
+
+deploy:
+  provider: releases
+  api_key:
+    secure: Cz2N3Vp3txw1tCVYLjqafixha/Lru4uWF0pDZm2kzT6N9AoOUPu3GkiVjRiyHLBO5WcfA9jnkAwm8T9A+QDi9+ourMYburcCtii3yMFwB4ZisGr5vZtY5x3ZFYcmpTKAijJVi0tBOpcYqpcsbVj88Wju1NFwrq5KR1tBnzicBbA=
+  file: 
+  - "peervpn-$ARCH-$TRAVIS_TAG.exe"
+  - "peervpn-installer-$ARCH-$TRAVIS_TAG.exe"
+  skip_cleanup: true
+  on:
+    tags: true
