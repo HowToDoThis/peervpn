@@ -10,6 +10,8 @@ else ifneq (,$(findstring x86_64, $(CC)))
 	RC=x86_64-w64-mingw32-windres
 endif
 
+RC:= windres
+
 # Windows resource compiler: windres
 INCLUDES=-I.
 DEFS=-DHAVE_CONFIG_H
