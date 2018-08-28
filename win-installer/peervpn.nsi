@@ -73,9 +73,11 @@ InstallDirRegKey HKLM "SOFTWARE\${PACKAGE_NAME}" ""
 
 !define MUI_COMPONENTSPAGE_SMALLDESC
 !define MUI_FINISHPAGE_SHOWREADME "$INSTDIR\doc\INSTALL-win32.txt"
+!ifdef USE_PEERVPN_GUI
 !define MUI_FINISHPAGE_RUN_TEXT "Start peervpn GUI"
 !define MUI_FINISHPAGE_RUN "$INSTDIR\bin\peervpn-gui.exe"
 !define MUI_FINISHPAGE_RUN_NOTCHECKED
+!endif
 
 !define MUI_FINISHPAGE_NOAUTOCLOSE
 !define MUI_ABORTWARNING
@@ -90,7 +92,9 @@ InstallDirRegKey HKLM "SOFTWARE\${PACKAGE_NAME}" ""
 !insertmacro MUI_PAGE_COMPONENTS
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
+!ifdef USE_PEERVPN_GUI
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW StartGUI.show
+!endif
 !insertmacro MUI_PAGE_FINISH
 
 !insertmacro MUI_UNPAGE_CONFIRM
@@ -172,6 +176,7 @@ ReserveFile "install-whirl.bmp"
 
 Section -pre
 	Push $0 ; for FindWindow
+!ifdef USE_PEERVPN_GUI
 	FindWindow $0 "peervpn-GUI"
 	StrCmp $0 0 guiNotRunning
 
@@ -195,6 +200,7 @@ Section -pre
 		StrCpy $strGuiKilled "1"
 
 	guiNotRunning:
+!endif
 		; check for running peervpn.exe processes
 		${nsProcess::FindProcess} "peervpn.exe" $R0
 		${If} $R0 == 0
@@ -244,7 +250,7 @@ Section /o "${PACKAGE_NAME} Service" SecService
 	SetOverwrite on
 
 	SetOutPath "$INSTDIR\bin"
-	File "${PEERVPN_ROOT}\peervpnserv.exe"
+	File "${PEERVPN_ROOT}\win-peervpnserv\peervpnserv.exe"
 
 	SetOutPath "$INSTDIR\config"
 
@@ -339,7 +345,7 @@ Section /o "Add Shortcuts to Start Menu" SecAddShortcuts
 
 	SetOverwrite on
 	CreateDirectory "$SMPROGRAMS\${PACKAGE_NAME}\Documentation"
-	WriteINIStr "$SMPROGRAMS\${PACKAGE_NAME}\Documentation\${PACKAGE_NAME} Web Site.url" "InternetShortcut" "URL" "http://peervpn.net/"
+	WriteINIStr "$SMPROGRAMS\${PACKAGE_NAME}\Documentation\${PACKAGE_NAME} Web Site.url" "InternetShortcut" "URL" "httsp://github.com/nkhorman/peervpn"
 
 	CreateShortCut "$SMPROGRAMS\${PACKAGE_NAME}\Uninstall ${PACKAGE_NAME}.lnk" "$INSTDIR\Uninstall.exe"
 SectionEnd
@@ -401,6 +407,7 @@ Function .onSelChange
 	${EndIf}
 FunctionEnd
 
+!ifdef USE_PEERVPN_GUI
 Function StartGUI.show
 	; if the user chooses not to install the GUI, do not offer to start it
 	${IfNot} ${SectionIsSelected} ${SecPeerVpnGUI}
@@ -413,6 +420,7 @@ Function StartGUI.show
 		SendMessage $mui.FinishPage.Run ${BM_SETCHECK} ${BST_CHECKED} 1
 	${EndIf}
 FunctionEnd
+!endif
 
 ;--------------------
 ;Post-install section
