@@ -419,9 +419,8 @@ VOID ServiceStart (DWORD dwArgc, LPTSTR *lpszArgv)
                             "%s\\%s", log_dir, log_file);
 
 	  /* construct command line */
-	  openvpn_snprintf (command_line, sizeof(command_line), PACKAGE " --service %s 1 --config \"%s\"",
-		      EXIT_EVENT_NAME,
-		      find_obj.cFileName);
+	  // openvpn_snprintf (command_line, sizeof(command_line), PACKAGE " --service %s 1 --config \"%s\"", EXIT_EVENT_NAME, find_obj.cFileName);
+	  openvpn_snprintf (command_line, sizeof(command_line), PACKAGE " \"%s\"", find_obj.cFileName);
 
 	  /* Make security attributes struct for logfile handle so it can
 	     be inherited. */
