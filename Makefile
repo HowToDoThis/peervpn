@@ -20,5 +20,7 @@ $(TARGET): peervpn.o
 
 peervpn.o: peervpn.c
 
+install:
+	install peervpn /usr/local/sbin/peervpn
 clean:
 	rm -f $(TARGET) peervpn.o
