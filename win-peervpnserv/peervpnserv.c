@@ -58,6 +58,9 @@
 #define ABOVE_NORMAL_PRIORITY_CLASS 0x00008000
 #endif
 
+#define MAIN_NAME peer_vpn_main
+#include "peervpn.c"
+
 struct security_attributes
 {
   SECURITY_ATTRIBUTES sa;
@@ -237,6 +240,16 @@ modext (char *dest, int size, const char *src, const char *newext)
   return false;
 }
 
+void startLoopThreadProc(void *pdata)
+{
+	MAIN_NAME(2, (char **)pdata);
+}
+
+int startLoop(char **pargs)
+{
+	return (_beginthread(&startLoopThreadProc, 0, pargs) != -1);
+}
+
 VOID ServiceStart (DWORD dwArgc, LPTSTR *lpszArgv)
 {
   char exe_path[MAX_PATH];
@@ -321,14 +334,8 @@ VOID ServiceStart (DWORD dwArgc, LPTSTR *lpszArgv)
     /* get extension on configuration files */
     QUERY_REG_STRING ("config_ext", ext_string);
 
-    /* get path to log directory */
-    QUERY_REG_STRING ("log_dir", log_dir);
-
     /* get priority for spawned OpenVPN subprocesses */
     QUERY_REG_STRING ("priority", priority_string);
-
-    /* should we truncate or append to logfile? */
-    QUERY_REG_STRING ("log_append", append_string);
 
     RegCloseKey (openvpn_key);
   }
@@ -351,174 +358,24 @@ VOID ServiceStart (DWORD dwArgc, LPTSTR *lpszArgv)
       goto finish;
     }
 
-  /* set log file append/truncate flag */
-  append = false;
-  if (append_string[0] == '0')
-    append = false;
-  else if (append_string[0] == '1')
-    append = true;
-  else
+
+	char configFile[MAX_PATH];
+	char *arg1 = "peervpnservice.exe";
+	char *arg2 = &configFile[0];
+	char *peerargs[] = {arg1, arg2, NULL};
+
+	openvpn_snprintf (configFile, MAX_PATH, "%s\\%s.%s", config_dir, "node", ext_string);
+
+    if(startLoop(&peerargs[0]))
     {
-      MSG (M_ERR, "Log file append flag (given as '%s') must be '0' or '1'", append_string);
-      goto finish;
+	Sleep(1000);
+	if(!ReportStatusToSCMgr(SERVICE_RUNNING, NO_ERROR, 0))
+		MSG(M_ERR, "ReportStatusToSCMgr SERVICE_RUNNING failed")
+	else if(WaitForSingleObject(exit_event, INFINITE) != WAIT_OBJECT_0)
+		MSG(M_ERR, "wait for shutdown signal failed");
     }
-
-  /*
-   * Instantiate an OpenVPN process for each configuration
-   * file found.
-   */
-  {
-    WIN32_FIND_DATA find_obj;
-    HANDLE find_handle;
-    BOOL more_files;
-    char find_string[MAX_PATH];
-
-    openvpn_snprintf (find_string, MAX_PATH, "%s\\*", config_dir);
-
-    find_handle = FindFirstFile (find_string, &find_obj);
-    if (find_handle == INVALID_HANDLE_VALUE)
-      {
-        MSG (M_ERR, "Cannot get configuration file list using: %s", find_string);
-	goto finish;
-      }
-
-    /*
-     * Loop over each config file
-     */
-    do {
-      HANDLE log_handle = NULL;
-      STARTUPINFO start_info;
-      PROCESS_INFORMATION proc_info;
-      struct security_attributes sa;
-      char log_file[MAX_PATH];
-      char log_path[MAX_PATH];
-      char command_line[256];
-
-      CLEAR (start_info);
-      CLEAR (proc_info);
-      CLEAR (sa);
-
-      if (!ReportStatusToSCMgr(SERVICE_START_PENDING, NO_ERROR, 3000))
-	{
-	  MSG (M_ERR, "ReportStatusToSCMgr #3 failed");
-	  FindClose (find_handle);
-	  goto finish;
-	}
-
-      /* does file have the correct type and extension? */
-      if (match (&find_obj, ext_string))
-	{
-	  /* get log file pathname */
-	  if (!modext (log_file, sizeof (log_file), find_obj.cFileName, "log"))
-	    {
-	      MSG (M_ERR, "Cannot construct logfile name based on: %s", find_obj.cFileName);
-	      FindClose (find_handle);
-	      goto finish;
-	    }
-	  openvpn_snprintf (log_path, sizeof(log_path),
-                            "%s\\%s", log_dir, log_file);
-
-	  /* construct command line */
-	  // openvpn_snprintf (command_line, sizeof(command_line), PACKAGE " --service %s 1 --config \"%s\"", EXIT_EVENT_NAME, find_obj.cFileName);
-	  openvpn_snprintf (command_line, sizeof(command_line), PACKAGE " \"%s\"", find_obj.cFileName);
-
-	  /* Make security attributes struct for logfile handle so it can
-	     be inherited. */
-	  if (!init_security_attributes_allow_all (&sa))
-	    {
-	      MSG (M_SYSERR, "InitializeSecurityDescriptor start_" PACKAGE " failed");
-	      goto finish;
-	    }
-
-	  /* open logfile as stdout/stderr for soon-to-be-spawned subprocess */
-	  log_handle = CreateFile (log_path,
-				   GENERIC_WRITE,
-				   FILE_SHARE_READ,
-				   &sa.sa,
-				   append ? OPEN_ALWAYS : CREATE_ALWAYS,
-				   FILE_ATTRIBUTE_NORMAL,
-				   NULL);
-
-	  if (log_handle == INVALID_HANDLE_VALUE)
-	    {
-	      MSG (M_SYSERR, "Cannot open logfile: %s", log_path);
-	      FindClose (find_handle);
-	      goto finish;
-	    }
-
-	  /* append to logfile? */
-	  if (append)
-	    {
-	      if (SetFilePointer (log_handle, 0, NULL, FILE_END) == INVALID_SET_FILE_POINTER)
-		{
-		  MSG (M_SYSERR, "Cannot seek to end of logfile: %s", log_path);
-		  FindClose (find_handle);
-		  goto finish;
-		}
-	    }
-
-	  /* fill in STARTUPINFO struct */
-	  GetStartupInfo(&start_info);
-	  start_info.cb = sizeof(start_info);
-	  start_info.dwFlags = STARTF_USESTDHANDLES|STARTF_USESHOWWINDOW;
-	  start_info.wShowWindow = SW_HIDE;
-	  start_info.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-	  start_info.hStdOutput = start_info.hStdError = log_handle;
-
-	  /* create an OpenVPN process for one config file */
-	  if (!CreateProcess(exe_path,
-			     command_line,
-			     NULL,
-			     NULL,
-			     TRUE,
-			     priority | CREATE_NEW_CONSOLE,
-			     NULL,
-			     config_dir,
-			     &start_info,
-			     &proc_info))
-	    {
-	      MSG (M_SYSERR, "CreateProcess failed, exe='%s' cmdline='%s' dir='%s'",
-		   exe_path,
-		   command_line,
-		   config_dir);
-
-	      FindClose (find_handle);
-	      CloseHandle (log_handle);
-	      goto finish;
-	    }
-
-	  /* close unneeded handles */
-	  Sleep (1000); /* try to prevent race if we close logfile
-			   handle before child process DUPs it */
-	  if (!CloseHandle (proc_info.hProcess)
-	      || !CloseHandle (proc_info.hThread)
-	      || !CloseHandle (log_handle))
-	    {
-	      MSG (M_SYSERR, "CloseHandle failed");
-	      goto finish;
-	    }
-	}
-
-      /* more files to process? */
-      more_files = FindNextFile (find_handle, &find_obj);
-
-    } while (more_files);
-    
-    FindClose (find_handle);
-  }
-
-  /* we are now fully started */
-  if (!ReportStatusToSCMgr(SERVICE_RUNNING, NO_ERROR, 0))
-    {
-      MSG (M_ERR, "ReportStatusToSCMgr SERVICE_RUNNING failed");
-      goto finish;
-    }
-
-  /* wait for our shutdown signal */
-  if (WaitForSingleObject (exit_event, INFINITE) != WAIT_OBJECT_0)
-    {
-      MSG (M_ERR, "wait for shutdown signal failed");
-    }
+    else
+    	MSG(M_ERR, "Unable to start proccess thread");
 
  finish:
   ServiceStop ();

@@ -1,4 +1,4 @@
-CFLAGS+=-DHAVE_CONFIG_H
+CFLAGS+=-DHAVE_CONFIG_H -I. -I..
 
 ifneq (,$(findstring i686, $(CC)))
 	CFLAGS+=-O2 -I/opt/mingw32/include

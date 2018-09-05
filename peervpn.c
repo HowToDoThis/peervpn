@@ -36,9 +36,13 @@
 #include "pwd.ic"
 #include "init.ic"
 
+#ifndef MAIN_NAME
+#define MAIN_NAME main
+#endif
+
 
 // commandline parser
-int main(int argc, char **argv) {
+int MAIN_NAME(int argc, char **argv) {
 	int confok;
 	int conffd;
 	int arglen;
@@ -94,7 +98,10 @@ int main(int argc, char **argv) {
 				}
 			}
 			else {
-				if((conffd = (open(argv[1],O_RDONLY))) < 0) throwError("could not open config file!");
+				char buf[MAX_PATH];
+				sprintf(buf, "could not open config file! '%s'", argv[1]);
+
+				if((conffd = (open(argv[1],O_RDONLY))) < 0) throwError(buf);
 				parseConfigFile(conffd,&config);
 				close(conffd);
 				confok = 1;

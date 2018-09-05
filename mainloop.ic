@@ -96,6 +96,11 @@ static void mainLoop() {
 	tapmsg_len = 0;
 
 	while(g_mainloop) {
+
+#if (MAIN_NAME != main)
+	  if(WaitForSingleObject(exit_event, 1) != WAIT_TIMEOUT)
+	  	g_mainloop = 0;
+#endif
 		tnow = utilGetClock();
 		
 		// read all fds
