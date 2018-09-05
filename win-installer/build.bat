@@ -1,0 +1,2 @@
+\users\neal\Desktop\nsis-2.46\makensis.exe /DTAP_WINDOWS_INSTALLER="tap-windows-9.21.2.exe" /DUSE_TAP_WINDOWS=1 /DPACKAGE_NAME="PeerVPN" /DVERSION_STRING="0-042-0v1.1" /DPEERVPN_ROOT=.. /DOUTPUT="peervpn-installer-x86-0-042-v1.1.exe" peervpn.nsi
+pause
