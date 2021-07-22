@@ -40,6 +40,7 @@
 #define MAIN_NAME main
 #endif
 
+static char bufThrowError[4096];
 
 // commandline parser
 int MAIN_NAME(int argc, char **argv) {
@@ -78,9 +79,11 @@ int MAIN_NAME(int argc, char **argv) {
 	config.sockmark = 0;
 
 	setbuf(stdout,NULL);
-	printf("PeerVPN v%d.%03d\n", PEERVPN_VERSION_MAJOR, PEERVPN_VERSION_MINOR);
-	printf("(c)2016 Tobias Volk <mail@tobiasvolk.de>\n");
-	printf("\n");
+	printf("PeerVPN v%d.%03d\n"
+		"(c)2016 Tobias Volk <mail@tobiasvolk.de>\n"
+		"\n"
+		, PEERVPN_VERSION_MAJOR, PEERVPN_VERSION_MINOR
+		);
 
 	confok = 0;
 	if(argc == 2) {
@@ -98,16 +101,15 @@ int MAIN_NAME(int argc, char **argv) {
 				}
 			}
 			else {
-				char buf[MAX_PATH];
-				sprintf(buf, "could not open config file! '%s'", argv[1]);
+				memset(bufThrowError, 0, sizeof(bufThrowError));
+				snprintf(bufThrowError, sizeof(bufThrowError)-1, "could not open config file! '%s'", argv[1]);
 
-				if((conffd = (open(argv[1],O_RDONLY))) < 0) throwError(buf);
+				if((conffd = (open(argv[1],O_RDONLY))) < 0) throwError(bufThrowError);
 				parseConfigFile(conffd,&config);
 				close(conffd);
 				confok = 1;
 			}
 		}
-
 	}
 
 	if(confok > 0) {
